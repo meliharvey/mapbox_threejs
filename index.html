@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8' />
+    <title>DSN34</title>
+    <meta name='viewport' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+    <script src='js/mapbox-gl.js'></script>
+    <link href='css/mapbox-gl.css' rel='stylesheet' />
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/three.js/94/three.min.js'></script>
+    <script src='js/GLTFLoader.js'></script>
+    <script src='js/MTLLoader.js'></script>
+    <script src='js/LoaderSupport.js'></script>
+    <script src='js/OBJLoader2.js'></script>
+    <script src='js/OBJLoader.js'></script>
+    <style>
+        body { margin:0; padding:0; }
+        #map { position:absolute; top:0; bottom:0; width:100%; }
+        #controls { position:absolute; top:0; left:0; }
+    </style>
+</head>
+<body>
+<div id='map'></div>
+
+<script>
+mapboxgl.accessToken = 'pk.eyJ1IjoiZGNoYXJ2ZXkiLCJhIjoiY2ltemVpNjY1MDRlanVya2szYzlnM2dxcyJ9.im9EDlP7YIYefEt_wz2fww';
+var map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/mapbox/streets-v9',
+    center: [-73.974823,40.771720],
+    zoom: 17.5,
+    pitch: 60
+});
+
+// converts from WGS84 Longitude, Latitude into a unit vector anchor at the top left as needed for GL JS custom layers
+var fromLL = function (lon,lat) {
+    // derived from https://gist.github.com/springmeyer/871897
+    var extent = 20037508.34;
+
+    var x = lon * extent / 180;
+    var y = Math.log(Math.tan((90 + lat) * Math.PI / 360)) / (Math.PI / 180);
+    y = y * extent / 180;
+
+    return [(x + extent) / (2 * extent), 1 - ((y + extent) / (2 * extent))];
+}
+
+// moves the 3d object from 0,0 to these coordinates
+var translate = fromLL(-73.974823,40.771720);
+console.log(fromLL(-73.974823,40.771720))
+
+var transform = {
+    translateX: translate[0],
+    translateY: translate[1],
+    translateZ: 0,
+    rotateX: Math.PI / 2,
+    rotateY: 0,
+    rotateZ: 0,
+    scale: 5.41843220338983e-8
+}
+
+const THREE = window.THREE;
+
+class CustomLayer {
+    constructor() {
+        this.id = 'custom_layer';
+        this.type = 'custom';
+
+
+        this.camera = new THREE.Camera();
+        this.scene = new THREE.Scene();
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff);
+        directionalLight.position.set(10, 40, 40);
+        this.scene.add(directionalLight);
+
+        // const directionalLight2 = new THREE.DirectionalLight(0xffffff);
+        // directionalLight2.position.set(10000, 10000, 20000).normalize();
+        // this.scene.add(directionalLight2);
+
+        var helper = new THREE.DirectionalLightHelper( directionalLight, 5 );
+        this.scene.add( helper );
+
+        // var helper2 = new THREE.DirectionalLightHelper( directionalLight2, 5 );
+        // this.scene.add( helper2 );
+
+        var loader = new THREE.GLTFLoader();
+        loader.load('3d/34M_17.gltf', (function (gltf) {
+            this.scene.add(gltf.scene);
+        }).bind(this));
+
+        // function called on successful load
+        var callbackOnLoad = function ( event ) {
+            this.scene.add( event.detail.loaderRootNode );
+        }.bind(this);
+
+        
+        // // instantiate the loader
+        // var objLoader = new THREE.OBJLoader2();
+        // var onLoadMtl = function ( materials ) {
+        //     objLoader.setMaterials( materials );
+        //     objLoader.setLogging( true, true );
+        //     objLoader.load( '3d/test.obj', callbackOnLoad, null, null, null, false );
+        // };
+        // objLoader.loadMtl( '3d/test.mtl', null, onLoadMtl );
+
+        // instantiate a loader
+        var loader = new THREE.OBJLoader();
+
+        // load a resource
+        loader.load(
+            // resource URL
+            '3d/test.obj',
+            // called when resource is loaded
+            function ( object ) {
+
+                this.scene.add( object );
+
+            }.bind(this),
+            // called when loading is in progresses
+            function ( xhr ) {
+
+                console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+
+            },
+            // called when loading has errors
+            function ( error ) {
+
+                console.log( 'An error happened' );
+
+            }
+        );
+
+    }
+
+    onAdd(map, gl) {
+        this.map = map;
+
+        this.renderer = new THREE.WebGLRenderer({
+            canvas: map.getCanvas(),
+            context: gl
+        });
+console.log("yes")
+        this.renderer.autoClear = false;
+    }
+
+    render3D(gl, matrix) {
+        const rotationX = new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(1, 0, 0), transform.rotateX);
+        const rotationY = new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(0, 1, 0), transform.rotateY);
+        const rotationZ = new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(0, 0, 1), transform.rotateZ);
+
+        const m = new THREE.Matrix4().fromArray(matrix);
+        const l = new THREE.Matrix4().makeTranslation(transform.translateX, transform.translateY, transform.translateZ)
+            .scale(new THREE.Vector3(transform.scale, -transform.scale, transform.scale))
+            .multiply(rotationX)
+            .multiply(rotationY)
+            .multiply(rotationZ);
+
+        this.camera.projectionMatrix.elements = matrix;
+        this.camera.projectionMatrix = m.multiply(l);
+        this.renderer.state.reset();
+        this.renderer.render(this.scene, this.camera);
+        this.map.triggerRepaint();
+    }
+
+}
+
+map.on('load', function() {
+    // map.addLayer({
+    //     'id': '3d-buildings',
+    //     'source': 'composite',
+    //     'source-layer': 'building',
+    //     'filter': ['==', 'extrude', 'true'],
+    //     'type': 'fill-extrusion',
+    //     'minzoom': 15,
+    //     'paint': {
+    //         'fill-extrusion-color': '#ccc',
+    //         'fill-extrusion-height': ["get", "height"]
+    //     }
+    // });
+
+    thrScene = new CustomLayer()
+    map.addLayer(thrScene);
+    
+});
+</script>
+
+</body>
+</html>
