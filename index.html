@@ -25,9 +25,9 @@
 mapboxgl.accessToken = 'pk.eyJ1IjoiZGNoYXJ2ZXkiLCJhIjoiY2ltemVpNjY1MDRlanVya2szYzlnM2dxcyJ9.im9EDlP7YIYefEt_wz2fww';
 var map = new mapboxgl.Map({
     container: 'map',
-    style: 'mapbox://styles/mapbox/streets-v9',
-    center: [-73.974823,40.771720],
-    zoom: 17.5,
+    style: 'mapbox://styles/dcharvey/cjbpm8opy70gz2rskhcwuwz4r',
+    center: [-73.981758,40.754248],
+    zoom: 16.5,
     pitch: 60
 });
 
@@ -44,8 +44,8 @@ var fromLL = function (lon,lat) {
 }
 
 // moves the 3d object from 0,0 to these coordinates
-var translate = fromLL(-73.974823,40.771720);
-console.log(fromLL(-73.974823,40.771720))
+var translate = fromLL(-73.981758,40.754248);
+console.log(fromLL(-73.981758,40.754248))
 
 var transform = {
     translateX: translate[0],
@@ -54,7 +54,8 @@ var transform = {
     rotateX: Math.PI / 2,
     rotateY: 0,
     rotateZ: 0,
-    scale: 5.41843220338983e-8
+    scale: 3.3e-8
+    // scale: 5.41843220338983e-8
 }
 
 const THREE = window.THREE;
@@ -68,66 +69,83 @@ class CustomLayer {
         this.camera = new THREE.Camera();
         this.scene = new THREE.Scene();
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff);
-        directionalLight.position.set(10, 40, 40);
+        const light = new THREE.AmbientLight( 0x404040, 1 ); // soft white light
+        this.scene.add( light );
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1 );
+        directionalLight.position.set(100, 400, 400);
         this.scene.add(directionalLight);
 
-        // const directionalLight2 = new THREE.DirectionalLight(0xffffff);
-        // directionalLight2.position.set(10000, 10000, 20000).normalize();
-        // this.scene.add(directionalLight2);
+        const directionalLight2 = new THREE.DirectionalLight(0xffffff, .5 );
+        directionalLight2.position.set(-100, 200, -400);
+        this.scene.add(directionalLight2);
 
-        var helper = new THREE.DirectionalLightHelper( directionalLight, 5 );
+        var helper = new THREE.DirectionalLightHelper( directionalLight, 1 );
         this.scene.add( helper );
 
-        // var helper2 = new THREE.DirectionalLightHelper( directionalLight2, 5 );
-        // this.scene.add( helper2 );
+        var helper2 = new THREE.DirectionalLightHelper( directionalLight2, 1 );
+        this.scene.add( helper2 );
 
-        var loader = new THREE.GLTFLoader();
-        loader.load('3d/34M_17.gltf', (function (gltf) {
-            this.scene.add(gltf.scene);
-        }).bind(this));
+        // var loader = new THREE.GLTFLoader();
+        // loader.load('3d/34M_17.gltf', (function (gltf) {
+        //     this.scene.add(gltf.scene);
+        // }).bind(this));
 
-        // function called on successful load
-        var callbackOnLoad = function ( event ) {
-            this.scene.add( event.detail.loaderRootNode );
-        }.bind(this);
+        var self = this
 
-        
-        // // instantiate the loader
-        // var objLoader = new THREE.OBJLoader2();
-        // var onLoadMtl = function ( materials ) {
-        //     objLoader.setMaterials( materials );
-        //     objLoader.setLogging( true, true );
-        //     objLoader.load( '3d/test.obj', callbackOnLoad, null, null, null, false );
-        // };
-        // objLoader.loadMtl( '3d/test.mtl', null, onLoadMtl );
+        // loadOBJ('3d/kpf.obj')
+        // loadOBJ('3d/kpf_context.obj')
+        // loadOBJ_1('3d/test.obj', '3d/test.mtl')
+        loadOBJ_1('3d/kpf_context.obj', '3d/kpf_context.mtl')
+        // loadOBJ_1('3d/kpf_views.obj', '3d/kpf_views.mtl')
+        loadOBJ_1('3d/kpf.obj', '3d/kpf.mtl')
 
-        // instantiate a loader
-        var loader = new THREE.OBJLoader();
+        function loadOBJ_1( OBJpath, MTLpath ) {
+          // function called on successful load
+          var callbackOnLoad = function ( event ) {
+              self.scene.add( event.detail.loaderRootNode );
+          }.bind(self);
 
-        // load a resource
-        loader.load(
-            // resource URL
-            '3d/test.obj',
-            // called when resource is loaded
-            function ( object ) {
 
-                this.scene.add( object );
+          // instantiate the loader
+          var objLoader = new THREE.OBJLoader2();
+          var onLoadMtl = function ( materials ) {
+              objLoader.setMaterials( materials );
+              objLoader.setLogging( true, true );
+              objLoader.load( OBJpath, callbackOnLoad, null, null, null, false );
+          };
+          objLoader.loadMtl( MTLpath, null, onLoadMtl );
+        }
 
-            }.bind(this),
-            // called when loading is in progresses
-            function ( xhr ) {
+        function loadOBJ_2( path ) {
 
-                console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+          // instantiate a loader
+          var loader = new THREE.OBJLoader();
 
-            },
-            // called when loading has errors
-            function ( error ) {
+          // load a resource
+          loader.load(
+              // resource URL
+              path,
+              // called when resource is loaded
+              function ( object ) {
 
-                console.log( 'An error happened' );
+                  self.scene.add( object );
 
-            }
-        );
+              }.bind(self),
+              // called when loading is in progresses
+              function ( xhr ) {
+
+                  console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+
+              },
+              // called when loading has errors
+              function ( error ) {
+
+                  console.log( 'An error happened' );
+
+              }
+          );
+        }
 
     }
 
@@ -179,7 +197,7 @@ map.on('load', function() {
 
     thrScene = new CustomLayer()
     map.addLayer(thrScene);
-    
+
 });
 </script>
 
